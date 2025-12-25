@@ -6,7 +6,7 @@
 
 // 按依赖顺序加载模块
 // 1. 日期工具（无依赖）
-importScripts('background/modules/date-utils.js');
+importScripts('common/modules/date-utils.js');
 // 2. 共享数据存储（无依赖，但被其他模块使用）
 importScripts('common/modules/storage.js');
 // 3. Background 端数据存储（依赖共享存储）
