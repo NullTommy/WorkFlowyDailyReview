@@ -34,8 +34,11 @@
 		<a href="#" id="click_ajax_lark_btn">飞书机器人测试</a>
 	</div>
 	<script type="text/javascript" src="js/jquery-1.8.3.js"></script>
-	<script type="text/javascript" src="js/utils.js"></script>
-	<script type="text/javascript" src="js/data-handler.js"></script>
+	<!-- 按依赖顺序加载模块 -->
+	<script type="text/javascript" src="js/common/modules/storage.js"></script>
+	<script type="text/javascript" src="js/popup/modules/messaging.js"></script>
+	<script type="text/javascript" src="js/popup/modules/clipboard.js"></script>
+	<script type="text/javascript" src="js/popup/modules/form-handler.js"></script>
 	<script type="text/javascript" src="js/popup.js"></script>
 </body>
 </html>

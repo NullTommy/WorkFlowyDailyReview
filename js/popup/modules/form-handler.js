@@ -1,25 +1,9 @@
-// 数据处理模块
+// 表单处理模块（popup 端）
 
-function getDefaultData() {
-    return {
-        defaultUserUrl: 'https://workflowy.com/#',
-        defaultQueryUrl: 'https://workflowy.com/#?q=',
-        defaultTag: '@文档标题',
-        defaultInterval: 240,
-        defaultTip: '回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!'
-    };
-}
-
-function transToUserData(defaultData) {
-    return {
-        userUrl: defaultData.defaultUserUrl,
-        userQueryUrl: defaultData.defaultQueryUrl,
-        userTag: defaultData.defaultTag,
-        userInterval: defaultData.defaultInterval,
-        tip: defaultData.defaultTip
-    };
-}
-
+/**
+ * 从页面表单获取用户输入的数据
+ * @returns {Object} 用户数据对象
+ */
 function getPageData() {
     const defaultData = getDefaultData();
     const userPageData = transToUserData(defaultData);
@@ -38,8 +22,11 @@ function getPageData() {
     return userPageData;
 }
 
+/**
+ * 加载用户保存的数据并填充到表单中
+ * 进入 popup 页面时触发
+ */
 function reloadUserData() {
-    /*【异步】加载用户保存的数据-进入pop页面时触发*/
     chrome.storage.local.get(['tip', 'userData'], result => {
         if (result.userData) {
             const inputBaseUrl = document.getElementById('input_baseUrl');

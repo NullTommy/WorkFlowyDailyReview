@@ -1,19 +1,10 @@
-// 工具函数模块
+// 剪贴板操作模块（popup 端）
 
-function sendMessage(action, payload) {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ action, payload }, response => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else if (response && response.error) {
-                reject(new Error(response.error));
-            } else {
-                resolve(response);
-            }
-        });
-    });
-}
-
+/**
+ * 复制文本到剪贴板
+ * @param {string} text - 要复制的文本
+ * @returns {Promise<void>}
+ */
 function copyToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text);

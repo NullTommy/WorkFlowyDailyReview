@@ -1,5 +1,6 @@
 ﻿// Popup 页面事件处理模块
-// 注意：此文件依赖于 utils.js 和 data-handler.js
+// 注意：此文件依赖于 popup/modules/ 下的模块文件
+// 模块加载顺序：storage.js -> messaging.js -> clipboard.js -> form-handler.js
 
 /* 【按钮】【获取历史回顾URL】生成并复制URL */
 $('#get_url_btn').click(() => {
