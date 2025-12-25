@@ -24,7 +24,7 @@
 			"run_at": "document_start"
 		}
 	],
-	"permissions": ["notifications", "alarms", "storage", "clipboardWrite"],
+	"permissions": ["notifications", "alarms", "storage", "clipboardWrite", "tabs"],
 	"host_permissions": [
 		"https://api.day.app/*",
 		"https://open.feishu.cn/*"

@@ -12,6 +12,10 @@ function setReminder(interval, tip, userData) {
     if (!intervalMinutes || Number.isNaN(intervalMinutes)) {
         return Promise.reject(new Error('无效的提醒间隔'));
     }
+    // Chrome 要求定时器最小间隔为 1 分钟
+    if (intervalMinutes < 1) {
+        return Promise.reject(new Error('提醒间隔不能小于 1 分钟'));
+    }
     // interval 单位分钟
     const triggerTime = Date.now() + 60 * 1000 * intervalMinutes;
     return new Promise((resolve, reject) => {
@@ -19,18 +23,25 @@ function setReminder(interval, tip, userData) {
             if (chrome.runtime.lastError) {
                 return reject(new Error(chrome.runtime.lastError.message));
             }
-            chrome.alarms.create(ALARM_NAME, { when: triggerTime, periodInMinutes: intervalMinutes });
-            const dataToSave = {
-                interval: intervalMinutes,
-                tip,
-                userData: { ...userData, userInterval: intervalMinutes }
-            };
-            chrome.storage.local.set(dataToSave, () => {
+            // 创建定时器并检查错误
+            chrome.alarms.create(ALARM_NAME, { when: triggerTime, periodInMinutes: intervalMinutes }, () => {
                 if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                    resolve();
+                    return reject(new Error(`创建定时器失败: ${chrome.runtime.lastError.message}`));
                 }
+                console.log(`定时器创建成功: ${ALARM_NAME}, 首次触发时间: ${new Date(triggerTime).toLocaleString()}, 间隔: ${intervalMinutes}分钟`);
+                
+                const dataToSave = {
+                    interval: intervalMinutes,
+                    tip,
+                    userData: { ...userData, userInterval: intervalMinutes }
+                };
+                chrome.storage.local.set(dataToSave, () => {
+                    if (chrome.runtime.lastError) {
+                        reject(new Error(chrome.runtime.lastError.message));
+                    } else {
+                        resolve();
+                    }
+                });
             });
         });
     });
@@ -179,36 +190,131 @@ Date.prototype.format = function(fmt) {
     return fmt;
 };
 
+function copyUrlToClipboard(url) {
+    // 尝试在所有标签页中执行复制操作
+    chrome.tabs.query({}, (tabs) => {
+        if (chrome.runtime.lastError) {
+            console.error('查询标签页失败:', chrome.runtime.lastError.message);
+            return;
+        }
+        
+        let copySuccess = false;
+        let pendingTabs = tabs.length;
+        
+        tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, { action: 'copyToClipboard', text: url }, (response) => {
+                pendingTabs--;
+                if (!chrome.runtime.lastError && response && response.success) {
+                    copySuccess = true;
+                    console.log('链接已复制到剪贴板:', url);
+                }
+                
+                // 如果所有标签页都处理完毕且没有成功，记录错误
+                if (pendingTabs === 0 && !copySuccess) {
+                    console.warn('无法复制链接到剪贴板（可能没有活动的标签页）');
+                }
+            });
+        });
+        
+        // 如果没有标签页，尝试使用 scripting API（需要 activeTab 权限）
+        if (tabs.length === 0) {
+            console.warn('没有活动的标签页，无法复制链接');
+        }
+    });
+}
+
 function handleAlarm(alarm) {
     if (alarm.name !== ALARM_NAME) {
         return;
     }
-    if (alarmSet.has(alarm.scheduledTime)) {
+    
+    // 使用时间戳作为去重标识，避免重复触发
+    const alarmKey = `${alarm.name}_${alarm.scheduledTime}`;
+    if (alarmSet.has(alarmKey)) {
+        console.log('定时器已处理，跳过', alarmKey);
         return;
     }
 
     getStoredData()
         .then(result => {
             const userData = result.userData || transToUserData(getDefaultData());
-            if (result.tip) {
-                chrome.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'icon.png',
-                    title: 'WorkFlowy Review',
-                    message: result.tip,
-                    requireInteraction: true
-                });
-            }
-            getReviewUrl(userData);
+            const tip = result.tip || '回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!';
+            
+            // 生成回顾链接
+            const reviewUrl = getReviewUrl(userData);
+            console.log('生成的回顾链接:', reviewUrl);
+            
+            // 将链接存储到临时存储中，以便通知点击时使用
+            chrome.storage.local.set({ lastReviewUrl: reviewUrl }, () => {
+                if (chrome.runtime.lastError) {
+                    console.warn('存储链接失败:', chrome.runtime.lastError.message);
+                }
+            });
+            
+            // 尝试复制链接到剪贴板
+            copyUrlToClipboard(reviewUrl);
+            
+            // 创建通知，使用正确的图标路径
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: chrome.runtime.getURL('icon.png'),
+                title: 'WorkFlowy Review',
+                message: tip,
+                requireInteraction: true
+            }, (notificationId) => {
+                if (chrome.runtime.lastError) {
+                    console.error('创建通知失败:', chrome.runtime.lastError.message);
+                } else {
+                    console.log('通知创建成功，ID:', notificationId);
+                }
+            });
         })
         .catch(err => console.error('读取存储失败', err));
 
-    alarmSet.clear();
-    alarmSet.add(alarm.scheduledTime);
+    // 记录已处理的定时器，防止重复触发
+    alarmSet.add(alarmKey);
+    // 清理旧的记录（保留最近10条）
+    if (alarmSet.size > 10) {
+        const entries = Array.from(alarmSet);
+        alarmSet.clear();
+        entries.slice(-5).forEach(key => alarmSet.add(key));
+    }
     console.log('*******Got an alarm!*********', alarm);
 }
 
 chrome.alarms.onAlarm.addListener(handleAlarm);
+
+// 处理通知点击事件
+chrome.notifications.onClicked.addListener((notificationId) => {
+    console.log('通知被点击:', notificationId);
+    // 获取存储的链接并打开
+    chrome.storage.local.get(['lastReviewUrl'], (result) => {
+        if (chrome.runtime.lastError) {
+            console.error('读取链接失败:', chrome.runtime.lastError.message);
+            // 如果读取失败，重新生成链接
+            getStoredData()
+                .then(stored => {
+                    const userData = stored.userData || transToUserData(getDefaultData());
+                    const reviewUrl = getReviewUrl(userData);
+                    chrome.tabs.create({ url: reviewUrl });
+                })
+                .catch(err => console.error('生成链接失败', err));
+        } else if (result.lastReviewUrl) {
+            chrome.tabs.create({ url: result.lastReviewUrl });
+        } else {
+            // 如果没有存储的链接，重新生成
+            getStoredData()
+                .then(stored => {
+                    const userData = stored.userData || transToUserData(getDefaultData());
+                    const reviewUrl = getReviewUrl(userData);
+                    chrome.tabs.create({ url: reviewUrl });
+                })
+                .catch(err => console.error('生成链接失败', err));
+        }
+    });
+    // 关闭通知
+    chrome.notifications.clear(notificationId);
+});
 
 chrome.runtime.onInstalled.addListener(() => {
     const userData = transToUserData(getDefaultData());
