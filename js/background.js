@@ -3,243 +3,272 @@
 // found in the LICENSE file.
 
 'use strict';
-let alarmSet = new Set();
+
+const ALARM_NAME = 'WFReviewReminder';
+const alarmSet = new Set();
 
 function setReminder(interval, tip, userData) {
-    //实际上：interval和tip都在userData中，所以直接使用userData
+    const intervalMinutes = Number(userData?.userInterval ?? interval);
+    if (!intervalMinutes || Number.isNaN(intervalMinutes)) {
+        return Promise.reject(new Error('无效的提醒间隔'));
+    }
     // interval 单位分钟
-    // tip 提示的消息
-    var st = new Date().getTime() + 60 * 1000 * userData.userInterval;
-    chrome.alarms.clearAll();
-    chrome.alarms.create("WFReviewReminder", {when: st, periodInMinutes:userData.userInterval});//创建定时器
-    chrome.alarms.onAlarm.addListener(alarm => {//设置定时器的执行逻辑
-        if(alarm.name != "WFReviewReminder"){
-            return
-        }
-        if(alarmSet.has(alarm.scheduledTime)){
-            return
-        }
-
-        chrome.storage.local.get(['tip','userData'], result => {
-            if(result.tip){
-                chrome.notifications.create(
-                    {type:"basic",
-                        iconUrl:"icon.png",
-                        title:"WorkFowy Review",
-                        message:result.tip,
-                        requireInteraction:true}
-                );
+    const triggerTime = Date.now() + 60 * 1000 * intervalMinutes;
+    return new Promise((resolve, reject) => {
+        chrome.alarms.clearAll(() => {
+            if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError.message));
             }
-            if(result.userData){
-                getReviewUrl(result.userData);
+            chrome.alarms.create(ALARM_NAME, { when: triggerTime, periodInMinutes: intervalMinutes });
+            const dataToSave = {
+                interval: intervalMinutes,
+                tip,
+                userData: { ...userData, userInterval: intervalMinutes }
+            };
+            chrome.storage.local.set(dataToSave, () => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                    resolve();
+                }
+            });
+        });
+    });
+}
+
+function getReviewUrl(userData) {
+    const defaultData = getDefaultData();
+    const safeUserData = userData || transToUserData(defaultData);
+    const base = safeUserData.userUrl !== '' ? `${safeUserData.userUrl}?q=` : defaultData.defaultQueryUrl;
+    const since = 'last-changed-since:';
+    const before = 'last-changed-before:';
+    const tag = safeUserData.userTag !== '' ? safeUserData.userTag : defaultData.defaultTag;
+    const blank = '%20';
+
+    const nowTime = Date.now();
+    const sourceDate = new Date('2021/07/01'); // 标签开始时间
+    const sourceDateTime = sourceDate.getTime();
+    const dayDiff = Math.round((nowTime - sourceDateTime) / (24 * 3600 * 1000));
+    const ran = Math.ceil(Math.random() * dayDiff); // 生成 0-dayDiff 之间的数字
+
+    const sinceDate = new Date();
+    const beforeDate = new Date();
+    sinceDate.setTime(nowTime - ran * 1000 * 60 * 60 * 24);
+    beforeDate.setTime(nowTime - (ran - 2) * 1000 * 60 * 60 * 24);
+    const sinceDateStr = sinceDate.format('MM/dd/yyyy');
+    const beforeDateStr = beforeDate.format('MM/dd/yyyy');
+    const endUrl = `${base}${since}${sinceDateStr}${blank}${before}${beforeDateStr}${blank}${tag}`;
+    return endUrl;
+}
+
+function getAllAlarms() {
+    return new Promise((resolve, reject) => {
+        chrome.alarms.getAll(alarms => {
+            if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError.message));
+            }
+            const alarmTmpList = alarms.map(alarm => {
+                const scheduledDate = new Date(alarm.scheduledTime);
+                return {
+                    name: alarm.name,
+                    periodInMinutes: alarm.periodInMinutes,
+                    scheduledTime: alarm.scheduledTime,
+                    scheduledTimeStr: scheduledDate.format('MM/dd/yyyy hh:mm:ss')
+                };
+            });
+            resolve(alarmTmpList);
+        });
+    });
+}
+
+function getStoredData() {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get(['tip', 'userData'], result => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+            } else {
+                resolve(result);
             }
         });
-
-        alarmSet.clear();
-        alarmSet.add(alarm.scheduledTime);
-        console.log("*******Got an alarm!*********", alarm);
     });
+}
 
-    chrome.storage.local.set({"interval": userData.userInterval, "tip": userData.tip,"userData": userData}); //保存用户数据
-};
-
-/* 将内容复制到剪贴板 */
-function copyToClipboard(copyText) {
-    /* 2、复制到剪贴板 */
-    // 创建input元素，给input传值，将input放入html里，选择input
-    var w = document.createElement('input');
-    w.value = copyText;
-    document.body.appendChild(w);
-    w.select();
-    // 调用浏览器的复制命令
-    document.execCommand("Copy");
-    // 将input元素隐藏，通知操作完成！
-    w.style.display='none';
-};
-
-
-/* 获取WF回顾的URL, 并复制到剪贴板*/
-function getReviewUrl(userData) {
-    /* 1、生成跳转链接 */
-    var defaultData = getDefaultData();
-    var base = '' != userData.userUrl ? userData.userUrl + "?q=" : defaultData.defaultQueryUrl;
-    var since = "last-changed-since:";
-    var before = "last-changed-before:";
-    var tag = '' != userData.userTag ? userData.userTag : defaultData.defaultTag;
-    var blank = "%20";
-
-    var nowTime = new Date().getTime();
-    var sourceDate = new Date("2021/07/01");//标签开始时间
-    var sourceDateTime = sourceDate.getTime();
-    var dayDiff = Math.round((nowTime - sourceDateTime) / (24 * 3600 * 1000));
-    var ran = Math.ceil(Math.random() * dayDiff);//生成0-dayDiff之间的数字
-
-    var sinceDate = new Date();
-    var beforeDate = new Date();
-    sinceDate.setTime(nowTime-ran * 1000 * 60 * 60 * 24)
-    beforeDate.setTime(nowTime-(ran-2) * 1000 * 60 * 60 * 24)
-    var sinceDateStr = sinceDate.format("MM/dd/yyyy");
-    var beforeDateStr = beforeDate.format("MM/dd/yyyy");
-    var endUrl =  base + since + sinceDateStr + blank + before + beforeDateStr + blank  + tag;
-    copyToClipboard(endUrl);
-    return endUrl;
-};
-
-/* 获取保存的定时器数据*/
-function getAllAlarms() {
-    chrome.alarms.getAll(function(alarms) {
-        let alarmTmpList = new Array();
-        for (let i in alarms){
-            var alarm = alarms[i];
-            var alarmTmp = {};
-            alarmTmp.name=alarm.name;
-            alarmTmp.periodInMinutes=alarm.periodInMinutes;
-            alarmTmp.scheduledTime=alarm.scheduledTime;
-            var scheduledDate = new Date(alarm.scheduledTime);
-            var scheduledTimeStr = scheduledDate.format("MM/dd/yyyy hh:mm:ss");
-            alarmTmp.scheduledTimeStr=scheduledTimeStr;
-            alarmTmpList.push(alarmTmp);
-        }
-        alert(JSON.stringify(alarmTmpList));
-    })
-};
-
-/* 获取保存的数据*/
-function showStoreData() {
-    chrome.storage.local.get(['tip','userData'], result => {
-        var dataStr = "数据:";
-        if(result.tip){
-            dataStr = dataStr + result.tip;
-        }
-        dataStr += "\n";
-        if(result.userData){
-            dataStr += JSON.stringify(result.userData);
-        }
-        alert(dataStr);
-    });
-};
-
-/* 触发手机*/
 function sendTest() {
-    $.ajax({
-        url: "https://api.day.app/test", async: true, success: function (result) {
-            alert("ajax Success")
-        }
-    });
-};
+    return fetch('https://api.day.app/test').then(res => res.text());
+}
 
-/* 触发手机*/
 function sendLarkMsg(msgText) {
-    var t = {
-        "msg_type": "text",
-        "content": {
-        "text": msgText
+    const payload = {
+        msg_type: 'text',
+        content: {
+            text: msgText
         }
     };
-    $.ajax({
-        url: "https://open.feishu.cn/open-apis/bot/v2/hook/6c89f9db-0ec0-4edd-a170-79b167389768",
-        async: true,
-        type: 'POST',
-        data: JSON.stringify(t),
-        dataType: 'json',
-        contentType: "application/json;charset=UTF-8",
-        success: function (result) {
-            alert("发送结果："+JSON.stringify(result))
-        }
-    });
-};
+    return fetch('https://open.feishu.cn/open-apis/bot/v2/hook/6c89f9db-0ec0-4edd-a170-79b167389768', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json;charset=UTF-8'
+        },
+        body: JSON.stringify(payload)
+    }).then(res => res.json());
+}
 
-/* 获取用户数据结构*/
 function getUserStorageObj() {
-    var userData = {
-        "userUrl": "",
-        "userQueryUrl": "",
-        "userTag": "",
-        "userInterval": "",
-        "tip":""
-    }
-    return userData;
-};
+    return {
+        userUrl: '',
+        userQueryUrl: '',
+        userTag: '',
+        userInterval: '',
+        tip: ''
+    };
+}
 
-/* 获取默认数据*/
 function getDefaultData() {
-    var defaultData= {
-        "defaultUserUrl": "https://workflowy.com/#",
-        "defaultQueryUrl": "https://workflowy.com/#?q=",
-        "defaultTag": "@文档标题",
-        "defaultInterval": 240,
-        "defaultTip": "回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!"
-    }
-    return defaultData;
-};
+    return {
+        defaultUserUrl: 'https://workflowy.com/#',
+        defaultQueryUrl: 'https://workflowy.com/#?q=',
+        defaultTag: '@文档标题',
+        defaultInterval: 240,
+        defaultTip: '回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!'
+    };
+}
 
-/* 转换默认数据为用户数据*/
 function transToUserData(defaultData) {
-    var userData = getUserStorageObj();
-    userData.userUrl =  defaultData.defaultUserUrl;
-    userData.userQueryUrl =  defaultData.defaultQueryUrl;
-    userData.userTag =  defaultData.defaultTag;
-    userData.userInterval =  defaultData.defaultInterval;
-    userData.tip =  defaultData.defaultTip;
+    const userData = getUserStorageObj();
+    userData.userUrl = defaultData.defaultUserUrl;
+    userData.userQueryUrl = defaultData.defaultQueryUrl;
+    userData.userTag = defaultData.defaultTag;
+    userData.userInterval = defaultData.defaultInterval;
+    userData.tip = defaultData.defaultTip;
     return userData;
-};
+}
 
-/* 加载用户本地保存的数据*/
 function buildUserStorageData(userData) {
-    chrome.storage.local.get(['tip','userData'], result => {
-        if(result.userData){
-            // alert("buildUserStorageData:result-"+JSON.stringify(result.userData));
-            userData.userUrl = result.userData.userUrl;
-            userData.userTag = result.userData.userTag;
-            userData.userInterval = result.userData.userInterval;
+    return getStoredData().then(result => {
+        const cloned = { ...userData };
+        if (result.userData) {
+            cloned.userUrl = result.userData.userUrl;
+            cloned.userTag = result.userData.userTag;
+            cloned.userInterval = result.userData.userInterval;
         }
-        if(result.tip){
-            userData.tip = result.tip;
+        if (result.tip) {
+            cloned.tip = result.tip;
         }
+        return cloned;
     });
-    // alert("buildUserStorageData:"+JSON.stringify(userData));
-    return userData;
-};
+}
 
 Date.prototype.format = function(fmt) {
-    var o = {
-        "M+" : this.getMonth()+1,                 //月份
-        "d+" : this.getDate(),                    //日
-        "h+" : this.getHours(),                   //小时
-        "m+" : this.getMinutes(),                 //分
-        "s+" : this.getSeconds(),                 //秒
-        "q+" : Math.floor((this.getMonth()+3)/3), //季度
-        "S"  : this.getMilliseconds()             //毫秒
+    const o = {
+        'M+': this.getMonth() + 1,
+        'd+': this.getDate(),
+        'h+': this.getHours(),
+        'm+': this.getMinutes(),
+        's+': this.getSeconds(),
+        'q+': Math.floor((this.getMonth() + 3) / 3),
+        S: this.getMilliseconds()
     };
-    if(/(y+)/.test(fmt)) {
-        fmt=fmt.replace(RegExp.$1, (this.getFullYear()+"").substr(4 - RegExp.$1.length));
+    if (/(y+)/.test(fmt)) {
+        fmt = fmt.replace(RegExp.$1, (this.getFullYear() + '').substr(4 - RegExp.$1.length));
     }
-    for(var k in o) {
-        if(new RegExp("("+ k +")").test(fmt)){
-            fmt = fmt.replace(RegExp.$1, (RegExp.$1.length==1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length)));
+    for (const k in o) {
+        if (new RegExp('(' + k + ')').test(fmt)) {
+            fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? o[k] : ('00' + o[k]).substr(('' + o[k]).length));
         }
     }
     return fmt;
 };
 
-// 一加载插件，就默认设置提醒
-chrome.runtime.onInstalled.addListener(function(reason){
-    var userData = transToUserData(getDefaultData());
-    setReminder(userData.userInterval, userData.tip, userData);
-    alert("插件安装或更新成功！提醒初始化成功");
-});
+function handleAlarm(alarm) {
+    if (alarm.name !== ALARM_NAME) {
+        return;
+    }
+    if (alarmSet.has(alarm.scheduledTime)) {
+        return;
+    }
 
-// 每次电脑重启或者谷歌浏览器重启自动加载用户数据
-chrome.runtime.onStartup.addListener(function(reason){
-    var userDefaultData = transToUserData(getDefaultData());
-    chrome.storage.local.get(['tip','userData'], result => {
-        if(result.tip){
+    getStoredData()
+        .then(result => {
+            const userData = result.userData || transToUserData(getDefaultData());
+            if (result.tip) {
+                chrome.notifications.create({
+                    type: 'basic',
+                    iconUrl: 'icon.png',
+                    title: 'WorkFlowy Review',
+                    message: result.tip,
+                    requireInteraction: true
+                });
+            }
+            getReviewUrl(userData);
+        })
+        .catch(err => console.error('读取存储失败', err));
 
-        }
-        if(result.userData){
-            setReminder(result.userData.userInterval, result.userData.tip, result.userData);
-        }else {
-            setReminder(userDefaultData.userInterval, userDefaultData.tip, userDefaultData);
-        }
+    alarmSet.clear();
+    alarmSet.add(alarm.scheduledTime);
+    console.log('*******Got an alarm!*********', alarm);
+}
+
+chrome.alarms.onAlarm.addListener(handleAlarm);
+
+chrome.runtime.onInstalled.addListener(() => {
+    const userData = transToUserData(getDefaultData());
+    setReminder(userData.userInterval, userData.tip, userData).catch(err => {
+        console.error('初始化提醒失败', err);
     });
 });
+
+chrome.runtime.onStartup.addListener(() => {
+    const userDefaultData = transToUserData(getDefaultData());
+    getStoredData()
+        .then(result => {
+            if (result.userData) {
+                return setReminder(result.userData.userInterval, result.userData.tip, result.userData);
+            }
+            return setReminder(userDefaultData.userInterval, userDefaultData.tip, userDefaultData);
+        })
+        .catch(err => console.error('启动时设置提醒失败', err));
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!message || !message.action) {
+        sendResponse({ error: 'invalid_message' });
+        return;
+    }
+
+    const done = Promise.resolve()
+        .then(() => {
+            switch (message.action) {
+                case 'getReviewUrl':
+                    return { url: getReviewUrl(message.payload) };
+                case 'setReminder':
+                    return setReminder(message.payload.userInterval, message.payload.tip, message.payload).then(() => ({ ok: true }));
+                case 'getStoredData':
+                    return getStoredData();
+                case 'sendTest':
+                    return sendTest().then(result => ({ result }));
+                case 'sendLarkMsg':
+                    return sendLarkMsg(message.payload).then(result => ({ result }));
+                case 'getAllAlarms':
+                    return getAllAlarmsWrapper();
+                case 'getDefaultData':
+                    return { data: getDefaultData() };
+                case 'transToUserData':
+                    return { data: transToUserData(getDefaultData()) };
+                case 'buildUserStorageData':
+                    return buildUserStorageData(message.payload);
+                default:
+                    throw new Error('unknown_action');
+            }
+        })
+        .then(response => sendResponse(response))
+        .catch(err => sendResponse({ error: err.message }));
+
+    // 保持消息通道打开
+    if (done && typeof done.then === 'function') {
+        return true;
+    }
+});
+
+function getAllAlarmsWrapper() {
+    return getAllAlarms().then(alarms => ({ alarms }));
+}
