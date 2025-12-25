@@ -1,35 +1,5 @@
-﻿function sendMessage(action, payload) {
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ action, payload }, response => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else if (response && response.error) {
-                reject(new Error(response.error));
-            } else {
-                resolve(response);
-            }
-        });
-    });
-}
-
-function copyToClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(text);
-    }
-    return new Promise((resolve, reject) => {
-        const input = document.createElement('input');
-        input.value = text;
-        document.body.appendChild(input);
-        input.select();
-        const result = document.execCommand('copy');
-        document.body.removeChild(input);
-        if (result) {
-            resolve();
-        } else {
-            reject(new Error('复制失败'));
-        }
-    });
-}
+﻿// Popup 页面事件处理模块
+// 注意：此文件依赖于 utils.js 和 data-handler.js
 
 /* 【按钮】【获取历史回顾URL】生成并复制URL */
 $('#get_url_btn').click(() => {
@@ -99,60 +69,6 @@ $('#show_alarms_btn').click(() => {
         .then(res => alert(JSON.stringify(res.alarms)))
         .catch(err => alert(`获取定时器失败：${err.message}`));
 });
-
-function getDefaultData() {
-    return {
-        defaultUserUrl: 'https://workflowy.com/#',
-        defaultQueryUrl: 'https://workflowy.com/#?q=',
-        defaultTag: '@文档标题',
-        defaultInterval: 240,
-        defaultTip: '回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!'
-    };
-}
-
-function transToUserData(defaultData) {
-    return {
-        userUrl: defaultData.defaultUserUrl,
-        userQueryUrl: defaultData.defaultQueryUrl,
-        userTag: defaultData.defaultTag,
-        userInterval: defaultData.defaultInterval,
-        tip: defaultData.defaultTip
-    };
-}
-
-function getPageData() {
-    const defaultData = getDefaultData();
-    const userPageData = transToUserData(defaultData);
-    const userUrl = $('#input_baseUrl').val();
-    if (userUrl !== '') {
-        userPageData.userUrl = userUrl;
-    }
-    const userTag = $('#input_tag').val();
-    if (userTag !== '') {
-        userPageData.userTag = userTag;
-    }
-    const userInterval = $('#input_interval').val();
-    if (userInterval !== '') {
-        userPageData.userInterval = parseInt(userInterval, 10);
-    }
-    return userPageData;
-}
-
-function reloadUserData() {
-    /*【异步】加载用户保存的数据-进入pop页面时触发*/
-    chrome.storage.local.get(['tip', 'userData'], result => {
-        if (result.userData) {
-            const inputBaseUrl = document.getElementById('input_baseUrl');
-            const inputTag = document.getElementById('input_tag');
-            const inputInterval = document.getElementById('input_interval');
-            inputBaseUrl.value = result.userData.userUrl;
-            inputTag.value = result.userData.userTag;
-            inputInterval.value = result.userData.userInterval;
-            // 每次加载页面时自动生成链接
-            $('#get_url_btn').click();
-        }
-    });
-}
 
 /*加载用户保存的数据-进入pop页面时触发*/
 reloadUserData();
