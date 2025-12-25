@@ -43,27 +43,6 @@ $('#get_store_data_btn').click(() => {
         .catch(err => alert(`读取失败：${err.message}`));
 });
 
-/*【按钮】【执行请求】执行请求按钮点击事件*/
-$('#click_ajax_btn').click(() => {
-    sendMessage('sendTest')
-        .then(res => alert(`请求成功: ${res.result}`))
-        .catch(err => alert(`请求失败：${err.message}`));
-});
-
-/*【按钮】【执行请求】飞书处理*/
-$('#click_ajax_lark_btn').click(() => {
-    const pageData = getPageData();
-    sendMessage('getReviewUrl', pageData)
-        .then(res => {
-            const endUrl = res.url;
-            $('#input_result').val(endUrl);
-            return copyToClipboard(endUrl).catch(() => {});
-        })
-        .then(() => sendMessage('sendLarkMsg', $('#input_result').val()))
-        .then(res => alert(`发送结果：${JSON.stringify(res.result)}`))
-        .catch(err => alert(`发送失败：${err.message}`));
-});
-
 /*【按钮】【查看定时器】*/
 $('#show_alarms_btn').click(() => {
     sendMessage('getAllAlarms')

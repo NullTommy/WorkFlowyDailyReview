@@ -15,9 +15,7 @@ importScripts('background/modules/storage.js');
 importScripts('background/modules/url-generator.js');
 // 5. 剪贴板操作（无依赖）
 importScripts('background/modules/clipboard.js');
-// 6. 消息发送（无依赖）
-importScripts('background/modules/messaging.js');
-// 7. 定时器管理（依赖 storage, url-generator, clipboard）
+// 6. 定时器管理（依赖 storage, url-generator, clipboard）
 importScripts('background/modules/alarm-manager.js');
 
 // 定时器事件监听
@@ -92,10 +90,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     return setReminder(message.payload.userInterval, message.payload.tip, message.payload).then(() => ({ ok: true }));
                 case 'getStoredData':
                     return getStoredData();
-                case 'sendTest':
-                    return sendTest().then(result => ({ result }));
-                case 'sendLarkMsg':
-                    return sendLarkMsg(message.payload).then(result => ({ result }));
                 case 'getAllAlarms':
                     return getAllAlarmsWrapper();
                 case 'getDefaultData':
