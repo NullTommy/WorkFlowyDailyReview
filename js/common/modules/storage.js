@@ -23,7 +23,7 @@ function getDefaultData() {
     return {
         defaultUserUrl: 'https://workflowy.com/#',
         defaultQueryUrl: 'https://workflowy.com/#?q=',
-        defaultTag: '@文档标题',
+        defaultTag: '',
         defaultInterval: 240, // 统一使用 240 分钟（4小时）
         defaultTip: '回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!'
     };

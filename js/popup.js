@@ -9,11 +9,7 @@ $('#get_url_btn').click(() => {
         .then(res => {
             const endUrl = res.url;
             $('#input_result').val(endUrl);
-            return copyToClipboard(endUrl).then(() => {
-                $('#span_copy_result').text('链接自动复制成功!');
-            }).catch(() => {
-                $('#span_copy_result').text('已生成链接，复制失败，请手动复制');
-            });
+            return copyToClipboard(endUrl);
         })
         .catch(err => alert(`生成链接失败：${err.message}`));
 });
