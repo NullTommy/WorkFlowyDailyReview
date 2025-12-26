@@ -79,7 +79,7 @@ function getReviewUrlV2(userData) {
  * @returns {string} 生成的回顾链接
  */
 function getLastNYearsAgoReviewUrl(userData, yearsAgo) {
-    return getLastNYearsAgoReviewUrlV1(userData, yearsAgo);
+    return getLastNYearsAgoReviewUrlV2(userData, yearsAgo);
 }
 
 
@@ -142,13 +142,12 @@ function getLastNYearsAgoReviewUrlV2(userData, yearsAgo) {
     targetYearToday.setFullYear(targetYearToday.getFullYear() - yearOffset);
     
     const sinceDate = new Date(targetYearToday);
-    // sinceDate 设置为N年前今天的前2天（更早的日期）
-    sinceDate.setTime(sinceDate.getTime() - 2 * 1000 * 60 * 60 * 24);
+    // sinceDate 设置为N年前今天的前0天（即N年前今天）
     
     // 计算从 sinceDate 到今天的天数差
     const daysSince = Math.round((nowTime - sinceDate.getTime()) / (24 * 3600 * 1000));
-    // 计算从 targetYearToday 到今天的天数差
-    const daysBefore = Math.round((nowTime - targetYearToday.getTime()) / (24 * 3600 * 1000));
+    // daysBefore 等于 daysSince - 1
+    const daysBefore = daysSince - 1;
     
     const queryParams = `changed:${daysSince}d${blank}-changed:${daysBefore}d${blank}${tag}`;
     const endUrl = `${base}${queryParams}`;
