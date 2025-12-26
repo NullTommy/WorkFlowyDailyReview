@@ -25,7 +25,7 @@ function getDefaultData() {
         defaultQueryUrl: 'https://workflowy.com/#?q=',
         defaultTag: '',
         defaultInterval: 240, // 统一使用 240 分钟（4小时）
-        defaultTip: '回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!'
+        defaultTip: '回顾去年今日的 WorkFlowy 吧! 点击通知可直接跳转!'
     };
 }
 

@@ -1,12 +1,12 @@
 // URL 生成模块
 
 /**
- * 生成 WorkFlowy 回顾链接
+ * 生成 WorkFlowy 回顾链接 V1
  * 基于随机日期范围生成历史回顾查询链接
  * @param {Object} userData - 用户数据对象
  * @returns {string} 生成的回顾链接
  */
-function getReviewUrl(userData) {
+function getReviewUrlV1(userData) {
     const defaultData = getDefaultData();
     const safeUserData = userData || transToUserData(defaultData);
     const base = safeUserData.userUrl !== '' ? `${safeUserData.userUrl}?q=` : defaultData.defaultQueryUrl;
@@ -27,18 +27,29 @@ function getReviewUrl(userData) {
     beforeDate.setTime(nowTime - (ran - 2) * 1000 * 60 * 60 * 24);
     const sinceDateStr = sinceDate.format('MM/dd/yyyy');
     const beforeDateStr = beforeDate.format('MM/dd/yyyy');
-    const endUrl = `${base}${since}${sinceDateStr}${blank}${before}${beforeDateStr}${blank}${tag}`;
+    const queryParams = `${since}${sinceDateStr}${blank}${before}${beforeDateStr}${blank}${tag}`;
+    const endUrl = `${base}${queryParams}`;
     return endUrl;
 }
 
 /**
- * 生成 WorkFlowy 回顾链接（N年前今天）
+ * 生成 WorkFlowy 回顾链接
+ * 基于随机日期范围生成历史回顾查询链接
+ * @param {Object} userData - 用户数据对象
+ * @returns {string} 生成的回顾链接
+ */
+function getReviewUrl(userData) {
+    return getReviewUrlV1(userData);
+}
+
+/**
+ * 生成 WorkFlowy 回顾链接（N年前今天）V1
  * 基于指定年数前的今天日期生成历史回顾查询链接
  * @param {Object} userData - 用户数据对象
  * @param {number} yearsAgo - 多少年前，默认为1（去年）。例如：1=去年，2=前年，3=3年前
  * @returns {string} 生成的回顾链接
  */
-function getLastNYearsAgoReviewUrl(userData, yearsAgo) {
+function getLastNYearsAgoReviewUrlV1(userData, yearsAgo) {
     const defaultData = getDefaultData();
     const safeUserData = userData || transToUserData(defaultData);
     const base = safeUserData.userUrl !== '' ? `${safeUserData.userUrl}?q=` : defaultData.defaultQueryUrl;
@@ -56,12 +67,24 @@ function getLastNYearsAgoReviewUrl(userData, yearsAgo) {
     
     const sinceDate = new Date(targetYearToday);
     const beforeDate = new Date(targetYearToday);
-    // beforeDate 设置为N年前今天的前2天
-    beforeDate.setTime(beforeDate.getTime() - 2 * 1000 * 60 * 60 * 24);
+    // sinceDate 设置为N年前今天的前2天（更早的日期）
+    sinceDate.setTime(sinceDate.getTime() - 2 * 1000 * 60 * 60 * 24);
     
     const sinceDateStr = sinceDate.format('MM/dd/yyyy');
     const beforeDateStr = beforeDate.format('MM/dd/yyyy');
-    const endUrl = `${base}${since}${sinceDateStr}${blank}${before}${beforeDateStr}${blank}${tag}`;
+    const queryParams = `${since}${sinceDateStr}${blank}${before}${beforeDateStr}${blank}${tag}`;
+    const endUrl = `${base}${queryParams}`;
     return endUrl;
+}
+
+/**
+ * 生成 WorkFlowy 回顾链接（N年前今天）
+ * 基于指定年数前的今天日期生成历史回顾查询链接
+ * @param {Object} userData - 用户数据对象
+ * @param {number} yearsAgo - 多少年前，默认为1（去年）。例如：1=去年，2=前年，3=3年前
+ * @returns {string} 生成的回顾链接
+ */
+function getLastNYearsAgoReviewUrl(userData, yearsAgo) {
+    return getLastNYearsAgoReviewUrlV1(userData, yearsAgo);
 }
 

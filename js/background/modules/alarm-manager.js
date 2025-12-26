@@ -32,7 +32,7 @@ function setReminder(interval, tip, userData) {
                     return reject(new Error(`创建定时器失败: ${chrome.runtime.lastError.message}`));
                 }
                 console.log(`定时器创建成功: ${ALARM_NAME}, 首次触发时间: ${new Date(triggerTime).toLocaleString()}, 间隔: ${intervalMinutes}分钟`);
-                
+
                 const dataToSave = {
                     interval: intervalMinutes,
                     tip,
@@ -90,7 +90,7 @@ function handleAlarm(alarm) {
     if (alarm.name !== ALARM_NAME) {
         return;
     }
-    
+
     // 使用时间戳作为去重标识，避免重复触发
     const alarmKey = `${alarm.name}_${alarm.scheduledTime}`;
     if (alarmSet.has(alarmKey)) {
@@ -101,22 +101,22 @@ function handleAlarm(alarm) {
     getStoredData()
         .then(result => {
             const userData = result.userData || transToUserData(getDefaultData());
-            const tip = result.tip || '回顾一下 WorkFlowy 吧!链接已自动复制到剪贴板!';
-            
+            const tip = result.tip || '回顾去年今日的 WorkFlowy 吧! 点击通知可直接跳转!';
+
             // 生成回顾链接
-            const reviewUrl = getReviewUrl(userData);
+            const reviewUrl = getLastNYearsAgoReviewUrl(userData, 1);
             console.log('生成的回顾链接:', reviewUrl);
-            
+
             // 将链接存储到临时存储中，以便通知点击时使用
             chrome.storage.local.set({ lastReviewUrl: reviewUrl }, () => {
                 if (chrome.runtime.lastError) {
                     console.warn('存储链接失败:', chrome.runtime.lastError.message);
                 }
             });
-            
+
             // 尝试复制链接到剪贴板
             copyUrlToClipboard(reviewUrl);
-            
+
             // 创建通知，使用正确的图标路径
             chrome.notifications.create({
                 type: 'basic',

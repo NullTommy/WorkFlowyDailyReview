@@ -32,7 +32,7 @@ chrome.notifications.onClicked.addListener((notificationId) => {
             getStoredData()
                 .then(stored => {
                     const userData = stored.userData || transToUserData(getDefaultData());
-                    const reviewUrl = getReviewUrl(userData);
+                    const reviewUrl = getLastNYearsAgoReviewUrl(userData, 1);
                     chrome.tabs.create({ url: reviewUrl });
                 })
                 .catch(err => console.error('生成链接失败', err));
@@ -43,7 +43,7 @@ chrome.notifications.onClicked.addListener((notificationId) => {
             getStoredData()
                 .then(stored => {
                     const userData = stored.userData || transToUserData(getDefaultData());
-                    const reviewUrl = getReviewUrl(userData);
+                    const reviewUrl = getLastNYearsAgoReviewUrl(userData, 1);
                     chrome.tabs.create({ url: reviewUrl });
                 })
                 .catch(err => console.error('生成链接失败', err));
@@ -85,7 +85,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         .then(() => {
             switch (message.action) {
                 case 'getReviewUrl':
-                    return { url: getReviewUrl(message.payload) };
+                    return { url: getLastNYearsAgoReviewUrl(message.payload, 1) };
                 case 'setReminder':
                     return setReminder(message.payload.userInterval, message.payload.tip, message.payload).then(() => ({ ok: true }));
                 case 'getStoredData':

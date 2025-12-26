@@ -14,6 +14,18 @@ $('#get_url_btn').click(() => {
         .catch(err => alert(`生成链接失败：${err.message}`));
 });
 
+/* 【按钮】【打开回顾URL】生成并在新标签页中打开URL */
+$('#open_url_btn').click(() => {
+    const pageData = getPageData();
+    sendMessage('getReviewUrl', pageData)
+        .then(res => {
+            const endUrl = res.url;
+            $('#input_result').val(endUrl);
+            chrome.tabs.create({ url: endUrl });
+        })
+        .catch(err => alert(`生成链接失败：${err.message}`));
+});
+
 /* 【按钮】【测试成功即可设置用户数据】保存设置数据 */
 $('#set_user_data_btn').click(() => {
     const pageData = getPageData();
